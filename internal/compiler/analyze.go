@@ -13,11 +13,12 @@ import (
 )
 
 type analysis struct {
-	Table      *ast.TableName
-	Columns    []*Column
-	Parameters []Parameter
-	Named      *named.ParamSet
-	Query      string
+	Table           *ast.TableName
+	Columns         []*Column
+	Parameters      []Parameter
+	Named           *named.ParamSet
+	Query           string
+	ExcludedColumns []string
 }
 
 func convertTableName(id *analyzer.Identifier) *ast.TableName {
@@ -176,7 +177,9 @@ func (c *Compiler) _analyzeQuery(raw *ast.RawStmt, query string, failfast bool) 
 		sort.Slice(refs, func(i, j int) bool { return refs[i].ref.Number < refs[j].ref.Number })
 	}
 	raw, embeds := rewrite.Embeds(raw)
-	qc, err := c.buildQueryCatalog(c.catalog, raw.Stmt, embeds)
+	raw, excludes, excludeEdits := rewrite.Excludes(raw, query)
+	edits = append(edits, excludeEdits...)
+	qc, err := c.buildQueryCatalog(c.catalog, raw.Stmt, embeds, excludes)
 	if err := check(err); err != nil {
 		return nil, err
 	}
@@ -206,10 +209,11 @@ func (c *Compiler) _analyzeQuery(raw *ast.RawStmt, query string, failfast bool) 
 	}
 
 	return &analysis{
-		Table:      table,
-		Columns:    cols,
-		Parameters: params,
-		Query:      expanded,
-		Named:      namedParams,
+		Table:           table,
+		Columns:         cols,
+		Parameters:      params,
+		Query:          expanded,
+		Named:          namedParams,
+		ExcludedColumns: excludes,
 	}, rerr
 }

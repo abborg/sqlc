@@ -139,10 +139,10 @@ func pluginQueries(r *compiler.Result) []*plugin.Query {
 		var params []*plugin.Parameter
 		var columns []*plugin.Column
 		for _, c := range q.Columns {
-			columns = append(columns, pluginQueryColumn(c))
+			columns = append(columns, pluginQueryColumn(c, q.ExcludedColumns))
 		}
 		for _, p := range q.Params {
-			params = append(params, pluginQueryParam(p))
+			params = append(params, pluginQueryParam(p, q.ExcludedColumns))
 		}
 		var iit *plugin.Identifier
 		if q.InsertIntoTable != nil {
@@ -166,7 +166,7 @@ func pluginQueries(r *compiler.Result) []*plugin.Query {
 	return out
 }
 
-func pluginQueryColumn(c *compiler.Column) *plugin.Column {
+func pluginQueryColumn(c *compiler.Column, excludedColumns []string) *plugin.Column {
 	l := -1
 	if c.Length != nil {
 		l = *c.Length
@@ -211,15 +211,18 @@ func pluginQueryColumn(c *compiler.Column) *plugin.Column {
 			Schema:  c.EmbedTable.Schema,
 			Name:    c.EmbedTable.Name,
 		}
+		if len(excludedColumns) > 0 {
+			out.ExcludedColumns = excludedColumns
+		}
 	}
 
 	return out
 }
 
-func pluginQueryParam(p compiler.Parameter) *plugin.Parameter {
+func pluginQueryParam(p compiler.Parameter, excludedColumns []string) *plugin.Parameter {
 	return &plugin.Parameter{
 		Number: int32(p.Number),
-		Column: pluginQueryColumn(p.Column),
+		Column: pluginQueryColumn(p.Column, excludedColumns),
 	}
 }
 

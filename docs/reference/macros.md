@@ -74,6 +74,47 @@ func (q *Queries) GetStudentAndScore(ctx context.Context, id int64) (GetStudentA
 
 See a full example in [Embedding structs](../howto/embedding).
 
+## `sqlc.exclude`
+
+Exclude named columns from query outputs. Use this when you want to select most
+columns (e.g. with `*` or `sqlc.embed`) but omit specific ones such as
+passwords or internal fields.
+
+Each `sqlc.exclude` call excludes one column. The argument is a column
+identifier, which may be unqualified, partially qualified, or fully qualified:
+
+- `sqlc.exclude('password')` - excludes the `password` column from any table
+- `sqlc.exclude(users.password)` - excludes `password` from the `users` table
+- `sqlc.exclude('schema.users.password')` - fully qualified
+
+```sql
+-- name: GetUserWithoutPassword :one
+SELECT *, sqlc.exclude('password') FROM users WHERE id = $1;
+
+-- >>> EXPANDS TO >>>
+
+-- name: GetUserWithoutPassword :one
+SELECT id, name, email FROM users WHERE id = $1;
+```
+
+Works with `sqlc.embed`:
+
+```sql
+-- name: GetUserSafe :one
+SELECT sqlc.embed(users), sqlc.exclude('password') FROM users WHERE id = $1;
+
+-- >>> EXPANDS TO >>>
+
+-- name: GetUserSafe :one
+SELECT users.id, users.name, users.email FROM users WHERE id = $1;
+```
+
+Exclude multiple columns with multiple calls:
+
+```sql
+SELECT *, sqlc.exclude('password'), sqlc.exclude('created_at') FROM users;
+```
+
 ## `sqlc.narg`
 
 The same as `sqlc.arg`, but always marks the parameter as nullable.

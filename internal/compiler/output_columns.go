@@ -3,6 +3,7 @@ package compiler
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/sqlc-dev/sqlc/internal/sql/ast"
 	"github.com/sqlc-dev/sqlc/internal/sql/astutils"
@@ -13,7 +14,7 @@ import (
 
 // OutputColumns determines which columns a statement will output
 func (c *Compiler) OutputColumns(stmt ast.Node) ([]*catalog.Column, error) {
-	qc, err := c.buildQueryCatalog(c.catalog, stmt, nil)
+	qc, err := c.buildQueryCatalog(c.catalog, stmt, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +48,105 @@ func hasStarRef(cf *ast.ColumnRef) bool {
 	return false
 }
 
+// ExcludeIdentifier is a parsed sqlc.exclude column identifier.
+// - Unqualified: ColName only (e.g. "user_id")
+// - Partially qualified: Table + ColName (e.g. "posts.user_id")
+// - Fully qualified: Schema + Table + ColName (e.g. "public.posts.user_id")
+type ExcludeIdentifier struct {
+	Schema   string // set only for fully qualified
+	Table    string // set for partially and fully qualified
+	ColName  string // always set
+	Original string // original string for error messages
+}
+
+// parseExcludeIdentifier parses an exclude string into an ExcludeIdentifier.
+// The second return value is true if an ambiguity check is needed (unqualified
+// or partially qualified); false for fully qualified or invalid, which are skipped.
+func parseExcludeIdentifier(excl string) (ExcludeIdentifier, bool) {
+	parts := strings.Split(excl, ".")
+	switch len(parts) {
+	case 1:
+		return ExcludeIdentifier{ColName: parts[0], Original: excl}, true
+	case 2:
+		return ExcludeIdentifier{Table: parts[0], ColName: parts[1], Original: excl}, true
+	case 3:
+		// Fully qualified - never ambiguous, skip check
+		return ExcludeIdentifier{Schema: parts[0], Table: parts[1], ColName: parts[2], Original: excl}, false
+	default:
+		return ExcludeIdentifier{}, false
+	}
+}
+
+// isExcludeAmbiguous returns an error if the parsed exclude identifier matches
+// columns from more than one table (unqualified) or from tables in more than
+// one schema (partially qualified).
+func isExcludeAmbiguous(parsed ExcludeIdentifier, tables []*Table) error {
+	if parsed.Table == "" {
+		// Unqualified: e.g. "user_id" - ambiguous if multiple tables have that column
+		var matchingTables int
+		for _, t := range tables {
+			for _, c := range t.Columns {
+				if c.Name == parsed.ColName {
+					matchingTables++
+					break
+				}
+			}
+		}
+		if matchingTables > 1 {
+			return &sqlerr.Error{
+				Code:    "42702",
+				Message: fmt.Sprintf("%q is ambiguous", parsed.Original),
+			}
+		}
+	} else {
+		// Partially qualified: e.g. "posts.user_id" - ambiguous if multiple
+		// tables from different schemas have the same table.column
+		seenSchemas := make(map[string]bool)
+		var matchingSchemas int
+		for _, t := range tables {
+			if t.Rel.Name != parsed.Table {
+				continue
+			}
+			for _, c := range t.Columns {
+				if c.Name == parsed.ColName {
+					schema := t.Rel.Schema
+					if !seenSchemas[schema] {
+						seenSchemas[schema] = true
+						matchingSchemas++
+					}
+					break
+				}
+			}
+		}
+		if matchingSchemas > 1 {
+			return &sqlerr.Error{
+				Code:    "42702",
+				Message: fmt.Sprintf("%q is ambiguous", parsed.Original),
+			}
+		}
+	}
+	return nil
+}
+
+// validateExcludeAmbiguity returns an error if any exclude matches columns
+// from more than one table.
+// - Unqualified (e.g. "user_id"): ambiguous if multiple tables have that column.
+// - Partially qualified (e.g. "posts.user_id"): ambiguous if multiple tables
+//   from different schemas match (e.g. public.posts and enterprise.posts).
+// - Fully qualified (e.g. "public.posts.user_id"): never ambiguous.
+func validateExcludeAmbiguity(excludes []string, tables []*Table) error {
+	for _, excl := range excludes {
+		parsed, needCheck := parseExcludeIdentifier(excl)
+		if !needCheck {
+			continue
+		}
+		if err := isExcludeAmbiguous(parsed, tables); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Compute the output columns for a statement.
 //
 // Return an error if column references are ambiguous
@@ -54,6 +154,12 @@ func hasStarRef(cf *ast.ColumnRef) bool {
 func (c *Compiler) outputColumns(qc *QueryCatalog, node ast.Node) ([]*Column, error) {
 	tables, err := c.sourceTables(qc, node)
 	if err != nil {
+		return nil, err
+	}
+
+	// Validate that unqualified excludes are not ambiguous (i.e. do not match
+	// columns from multiple tables).
+	if err := validateExcludeAmbiguity(qc.excludes, tables); err != nil {
 		return nil, err
 	}
 
@@ -259,10 +365,12 @@ func (c *Compiler) outputColumns(qc *QueryCatalog, node ast.Node) ([]*Column, er
 
 				// add a column with a reference to an embedded table
 				if embed, ok := qc.embeds.Find(n); ok {
-					cols = append(cols, &Column{
+					// Filter embed columns by exclude set when building the embed column
+					embedCol := &Column{
 						Name:       embed.Table.Name,
 						EmbedTable: embed.Table,
-					})
+					}
+					cols = append(cols, embedCol)
 					continue
 				}
 
@@ -273,6 +381,9 @@ func (c *Compiler) outputColumns(qc *QueryCatalog, node ast.Node) ([]*Column, er
 						continue
 					}
 					for _, c := range t.Columns {
+						if qc.excludes.Matches(c.Table, t.Rel.Name, c.Name) {
+							continue
+						}
 						cname := c.Name
 						if res.Name != nil {
 							cname = *res.Name

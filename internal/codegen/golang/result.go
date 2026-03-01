@@ -96,6 +96,7 @@ func buildStructs(req *plugin.GenerateRequest, options *opts.Options) []Struct {
 				addExtraGoStructTags(tags, req, options, column)
 				s.Fields = append(s.Fields, Field{
 					Name:    StructName(column.Name, options),
+					DBName:  column.Name,
 					Type:    goType(req, options, column),
 					Tags:    tags,
 					Comment: column.Comment,
@@ -124,7 +125,8 @@ type goEmbed struct {
 
 // look through all the structs and attempt to find a matching one to embed
 // We need the name of the struct and its field names.
-func newGoEmbed(embed *plugin.Identifier, structs []Struct, defaultSchema string) *goEmbed {
+// excludedColumns filters out fields matching the given identifiers (e.g. "password", "users.password").
+func newGoEmbed(embed *plugin.Identifier, structs []Struct, defaultSchema string, excludedColumns []string) *goEmbed {
 	if embed == nil {
 		return nil
 	}
@@ -140,8 +142,13 @@ func newGoEmbed(embed *plugin.Identifier, structs []Struct, defaultSchema string
 			continue
 		}
 
-		fields := make([]Field, len(s.Fields))
-		copy(fields, s.Fields)
+		var fields []Field
+		for _, f := range s.Fields {
+			if columnMatchesExclude(f, embed, embedSchema, excludedColumns) {
+				continue
+			}
+			fields = append(fields, f)
+		}
 
 		return &goEmbed{
 			modelType: s.Name,
@@ -151,6 +158,39 @@ func newGoEmbed(embed *plugin.Identifier, structs []Struct, defaultSchema string
 	}
 
 	return nil
+}
+
+func columnMatchesExclude(f Field, embed *plugin.Identifier, embedSchema string, excludes []string) bool {
+	colName := f.DBName
+	if f.Column != nil && f.Column.OriginalName != "" {
+		colName = f.Column.OriginalName
+	}
+	for _, excl := range excludes {
+		parts := strings.Split(excl, ".")
+		switch len(parts) {
+		case 1:
+			if colName == parts[0] {
+				return true
+			}
+		case 2:
+			qualifier, name := parts[0], parts[1]
+			if colName != name {
+				continue
+			}
+			if qualifier == embed.Name {
+				return true
+			}
+		case 3:
+			schema, qualifier, name := parts[0], parts[1], parts[2]
+			if colName != name {
+				continue
+			}
+			if schema == embedSchema && qualifier == embed.Name {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func columnName(c *plugin.Column, pos int) string {
@@ -304,7 +344,7 @@ func buildQueries(req *plugin.GenerateRequest, options *opts.Options, structs []
 					columns = append(columns, goColumn{
 						id:     i,
 						Column: c,
-						embed:  newGoEmbed(c.EmbedTable, structs, req.Catalog.DefaultSchema),
+						embed:  newGoEmbed(c.EmbedTable, structs, req.Catalog.DefaultSchema, c.GetExcludedColumns()),
 					})
 				}
 				var err error

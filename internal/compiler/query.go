@@ -53,6 +53,9 @@ type Query struct {
 
 	// Needed for vet
 	RawStmt *ast.RawStmt
+
+	// Column identifiers to exclude from output (e.g. from sqlc.exclude)
+	ExcludedColumns []string
 }
 
 type Parameter struct {

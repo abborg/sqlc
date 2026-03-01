@@ -19,6 +19,7 @@ import (
 //         from executing EXPLAIN ... on a query during vet rule evaluation
 
 type Debug struct {
+	DumpSQL              bool
 	DumpAST              bool
 	DumpCatalog          bool
 	Trace                string
@@ -42,6 +43,8 @@ func DebugFromString(val string) Debug {
 	for _, pair := range strings.Split(val, ",") {
 		pair = strings.TrimSpace(pair)
 		switch {
+		case pair == "dumpsql=1":
+			d.DumpSQL = true
 		case pair == "dumpast=1":
 			d.DumpAST = true
 		case pair == "dumpcatalog=1":

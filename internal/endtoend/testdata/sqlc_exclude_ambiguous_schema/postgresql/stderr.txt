@@ -1,0 +1,2 @@
+# package querytest
+query.sql:3:72: "posts.user_id" is ambiguous

@@ -9,12 +9,13 @@ import (
 )
 
 type QueryCatalog struct {
-	catalog *catalog.Catalog
-	ctes    map[string]*Table
-	embeds  rewrite.EmbedSet
+	catalog  *catalog.Catalog
+	ctes     map[string]*Table
+	embeds   rewrite.EmbedSet
+	excludes rewrite.ExcludeSet
 }
 
-func (comp *Compiler) buildQueryCatalog(c *catalog.Catalog, node ast.Node, embeds rewrite.EmbedSet) (*QueryCatalog, error) {
+func (comp *Compiler) buildQueryCatalog(c *catalog.Catalog, node ast.Node, embeds rewrite.EmbedSet, excludes rewrite.ExcludeSet) (*QueryCatalog, error) {
 	var with *ast.WithClause
 	switch n := node.(type) {
 	case *ast.DeleteStmt:
@@ -28,7 +29,7 @@ func (comp *Compiler) buildQueryCatalog(c *catalog.Catalog, node ast.Node, embed
 	default:
 		with = nil
 	}
-	qc := &QueryCatalog{catalog: c, ctes: map[string]*Table{}, embeds: embeds}
+	qc := &QueryCatalog{catalog: c, ctes: map[string]*Table{}, embeds: embeds, excludes: excludes}
 	if with != nil {
 		for _, item := range with.Ctes.Items {
 			if cte, ok := item.(*ast.CommonTableExpr); ok {
