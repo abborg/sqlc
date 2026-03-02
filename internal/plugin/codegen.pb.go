@@ -657,6 +657,7 @@ type Column struct {
 	OriginalName string      `protobuf:"bytes,15,opt,name=original_name,json=originalName,proto3" json:"original_name,omitempty"`
 	Unsigned     bool        `protobuf:"varint,16,opt,name=unsigned,proto3" json:"unsigned,omitempty"`
 	ArrayDims    int32       `protobuf:"varint,17,opt,name=array_dims,json=arrayDims,proto3" json:"array_dims,omitempty"`
+	IsEmbedMany  bool        `protobuf:"varint,18,opt,name=is_embed_many,json=isEmbedMany,proto3" json:"is_embed_many,omitempty"`
 }
 
 func (x *Column) Reset() {
@@ -803,19 +804,27 @@ func (x *Column) GetArrayDims() int32 {
 	return 0
 }
 
+func (x *Column) GetIsEmbedMany() bool {
+	if x != nil {
+		return x.IsEmbedMany
+	}
+	return false
+}
+
 type Query struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Text            string       `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
-	Name            string       `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Cmd             string       `protobuf:"bytes,3,opt,name=cmd,proto3" json:"cmd,omitempty"`
-	Columns         []*Column    `protobuf:"bytes,4,rep,name=columns,proto3" json:"columns,omitempty"`
-	Params          []*Parameter `protobuf:"bytes,5,rep,name=params,json=parameters,proto3" json:"params,omitempty"`
-	Comments        []string     `protobuf:"bytes,6,rep,name=comments,proto3" json:"comments,omitempty"`
-	Filename        string       `protobuf:"bytes,7,opt,name=filename,proto3" json:"filename,omitempty"`
-	InsertIntoTable *Identifier  `protobuf:"bytes,8,opt,name=insert_into_table,proto3" json:"insert_into_table,omitempty"`
+	Text               string       `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Name               string       `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Cmd                string       `protobuf:"bytes,3,opt,name=cmd,proto3" json:"cmd,omitempty"`
+	Columns            []*Column    `protobuf:"bytes,4,rep,name=columns,proto3" json:"columns,omitempty"`
+	Params             []*Parameter `protobuf:"bytes,5,rep,name=params,json=parameters,proto3" json:"params,omitempty"`
+	Comments           []string     `protobuf:"bytes,6,rep,name=comments,proto3" json:"comments,omitempty"`
+	Filename           string       `protobuf:"bytes,7,opt,name=filename,proto3" json:"filename,omitempty"`
+	InsertIntoTable    *Identifier  `protobuf:"bytes,8,opt,name=insert_into_table,proto3" json:"insert_into_table,omitempty"`
+	GroupByColumnIndex int32        `protobuf:"varint,9,opt,name=group_by_column_index,json=groupByColumnIndex,proto3" json:"group_by_column_index,omitempty"`
 }
 
 func (x *Query) Reset() {
@@ -904,6 +913,13 @@ func (x *Query) GetInsertIntoTable() *Identifier {
 		return x.InsertIntoTable
 	}
 	return nil
+}
+
+func (x *Query) GetGroupByColumnIndex() int32 {
+	if x != nil {
+		return x.GroupByColumnIndex
+	}
+	return 0
 }
 
 type Parameter struct {

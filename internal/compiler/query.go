@@ -37,7 +37,8 @@ type Column struct {
 	Type       *ast.TypeName
 	EmbedTable *ast.TableName
 
-	IsSqlcSlice bool // is this sqlc.slice()
+	IsEmbedMany bool
+	IsSqlcSlice bool
 
 	skipTableRequiredCheck bool
 }
@@ -48,11 +49,10 @@ type Query struct {
 	Columns  []*Column
 	Params   []Parameter
 
-	// Needed for CopyFrom
-	InsertIntoTable *ast.TableName
+	GroupByColumnIndex int
 
-	// Needed for vet
-	RawStmt *ast.RawStmt
+	InsertIntoTable *ast.TableName
+	RawStmt         *ast.RawStmt
 }
 
 type Parameter struct {

@@ -19,6 +19,13 @@ type {{.Ret.Type}} struct { {{- range .Ret.Struct.Fields}}
 }
 {{end}}
 
+{{if .Ret.RowStruct}}
+type {{.Ret.RowStruct.Name}} struct { {{- range .Ret.RowStruct.Fields}}
+  {{.Name}} {{.Type}} {{if .Tag}}{{$.Q}}{{.Tag}}{{$.Q}}{{end}}
+  {{- end}}
+}
+{{end}}
+
 {{if eq .Cmd ":one"}}
 {{range .Comments}}//{{.}}
 {{end -}}
@@ -46,6 +53,36 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
         return nil, {{if $.WrapErrors}}fmt.Errorf("query {{.MethodName}}: %w", err){{else}}err{{end}}
     }
     defer rows.Close()
+    {{- if .Ret.RowStruct}}
+    {{- if $.EmitEmptySlices}}
+    items := []{{.Ret.DefineType}}{}
+    {{else}}
+    var items []{{.Ret.DefineType}}
+    {{end}}
+    for rows.Next() {
+        var {{.Ret.Name}} {{.Ret.RowStruct.Name}}
+        if err := rows.Scan({{.Ret.RowScan}}); err != nil {
+            return nil, {{if $.WrapErrors}}fmt.Errorf("query {{.MethodName}}: %w", err){{else}}err{{end}}
+        }
+        {{$groupKey := .Ret.RowGroupKeyExpr}}
+        {{$resultKey := .Ret.ResultGroupKeyExpr}}
+        if len(items) == 0 || {{$groupKey}} != {{$resultKey}} {
+            items = append(items, {{.Ret.Struct.Name}}{
+            {{- range .Ret.Struct.Fields}}
+                {{- if or (not (hasPrefix .Type "[]")) (eq .Type "[]byte")}}
+                {{.Name}}: {{$.Ret.Name}}.{{.Name}},
+                {{- else}}
+                {{.Name}}: []{{trimPrefix .Type "[]"}}{ {{$.Ret.Name}}.{{.Name}} },
+                {{- end}}
+            {{- end}}
+            })
+        } else {
+            {{- range .Ret.EmbedManyAppends}}
+            {{.}}
+            {{- end}}
+        }
+    }
+    {{- else}}
     {{- if $.EmitEmptySlices}}
     items := []{{.Ret.DefineType}}{}
     {{else}}
@@ -58,6 +95,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{ dbarg }} {{.Arg.Pair}}
         }
         items = append(items, {{.Ret.ReturnName}})
     }
+    {{- end}}
     if err := rows.Close(); err != nil {
         return nil, {{if $.WrapErrors}}fmt.Errorf("query {{.MethodName}}: %w", err){{else}}err{{end}}
     }

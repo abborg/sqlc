@@ -10,17 +10,16 @@ import (
 )
 
 type QueryValue struct {
-	Emit        bool
-	EmitPointer bool
-	Name        string
-	DBName      string // The name of the field in the database. Only set if Struct==nil.
-	Struct      *Struct
-	Typ         string
-	SQLDriver   opts.SQLDriver
-
-	// Column is kept so late in the generation process around to differentiate
-	// between mysql slices and pg arrays
-	Column *plugin.Column
+	Emit               bool
+	EmitPointer        bool
+	Name               string
+	DBName             string
+	Struct             *Struct
+	RowStruct          *Struct
+	Typ                string
+	SQLDriver          opts.SQLDriver
+	GroupByColumnIndex int
+	Column             *plugin.Column
 }
 
 func (v QueryValue) EmitStruct() bool {
@@ -293,4 +292,96 @@ func (q Query) TableIdentifierForMySQL() string {
 		}
 	}
 	return strings.Join(escapedNames, ".")
+}
+
+func (v QueryValue) RowScan() string {
+	if v.RowStruct == nil {
+		return v.Scan()
+	}
+	return v.scanStruct(v.RowStruct)
+}
+
+func (v QueryValue) RowGroupKeyExpr() string {
+	if v.RowStruct == nil || v.GroupByColumnIndex < 0 {
+		return ""
+	}
+	idx := 0
+	for _, f := range v.RowStruct.Fields {
+		if len(f.EmbedFields) > 0 {
+			for _, ef := range f.EmbedFields {
+				if idx == v.GroupByColumnIndex {
+					return v.Name + "." + f.Name + "." + ef.Name
+				}
+				idx++
+			}
+		} else {
+			if idx == v.GroupByColumnIndex {
+				return v.Name + "." + f.Name
+			}
+			idx++
+		}
+	}
+	return ""
+}
+
+func (v QueryValue) scanStruct(s *Struct) string {
+	var out []string
+	for _, f := range s.Fields {
+		if len(f.EmbedFields) > 0 {
+			for _, embed := range f.EmbedFields {
+				if strings.HasPrefix(embed.Type, "[]") && embed.Type != "[]byte" && !v.SQLDriver.IsPGX() {
+					out = append(out, "pq.Array(&"+v.Name+"."+f.Name+"."+embed.Name+")")
+				} else {
+					out = append(out, "&"+v.Name+"."+f.Name+"."+embed.Name)
+				}
+			}
+		} else {
+			if strings.HasPrefix(f.Type, "[]") && f.Type != "[]byte" && !v.SQLDriver.IsPGX() {
+				out = append(out, "pq.Array(&"+v.Name+"."+f.Name+")")
+			} else {
+				out = append(out, "&"+v.Name+"."+f.Name)
+			}
+		}
+	}
+	if len(out) <= 3 {
+		return strings.Join(out, ",")
+	}
+	out = append(out, "")
+	return "\n" + strings.Join(out, ",\n")
+}
+
+func (v QueryValue) EmbedManyAppends() []string {
+	if v.Struct == nil {
+		return nil
+	}
+	var out []string
+	for _, f := range v.Struct.Fields {
+		if strings.HasPrefix(f.Type, "[]") && f.Type != "[]byte" {
+			out = append(out, "items[len(items)-1]."+f.Name+" = append(items[len(items)-1]."+f.Name+", "+v.Name+"."+f.Name+")")
+		}
+	}
+	return out
+}
+
+func (v QueryValue) ResultGroupKeyExpr() string {
+	if v.Struct == nil || v.GroupByColumnIndex < 0 {
+		return ""
+	}
+	idx := 0
+	for _, f := range v.Struct.Fields {
+		if len(f.EmbedFields) > 0 {
+			for _, ef := range f.EmbedFields {
+				if idx == v.GroupByColumnIndex {
+					return "items[len(items)-1]." + f.Name + "." + ef.Name
+				}
+				idx++
+			}
+		} else if !strings.HasPrefix(f.Type, "[]") {
+			if idx == v.GroupByColumnIndex {
+				return "items[len(items)-1]." + f.Name
+			}
+			idx++
+		}
+	}
+	return ""
 }

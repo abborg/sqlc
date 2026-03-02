@@ -147,6 +147,11 @@ func ParseCommentFlags(comments []string) (map[string]string, map[string]bool, m
 			}
 			params[name] = strings.Join(rest, " ")
 
+		case constants.QueryFlagGroupBy:
+			if s.Scan() {
+				params["group-by"] = s.Text()
+			}
+
 		case constants.QueryFlagSqlcVetDisable:
 			flags[token] = true
 

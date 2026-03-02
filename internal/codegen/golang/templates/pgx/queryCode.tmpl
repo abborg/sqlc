@@ -1,5 +1,6 @@
 {{define "queryCodePgx"}}
 {{range .GoQueries}}
+{{$ret := .Ret}}
 {{if $.OutputQuery .SourceName}}
 {{if and (ne .Cmd ":copyfrom") (ne (hasPrefix .Cmd ":batch") true)}}
 const {{.ConstantName}} = {{$.Q}}-- name: {{.MethodName}} {{.Cmd}}
@@ -17,6 +18,13 @@ type {{.Arg.Type}} struct { {{- range .Arg.Struct.Fields}}
 
 {{if .Ret.EmitStruct}}
 type {{.Ret.Type}} struct { {{- range .Ret.Struct.Fields}}
+  {{.Name}} {{.Type}} {{if .Tag}}{{$.Q}}{{.Tag}}{{$.Q}}{{end}}
+  {{- end}}
+}
+{{end}}
+
+{{if .Ret.RowStruct}}
+type {{.Ret.RowStruct.Name}} struct { {{- range .Ret.RowStruct.Fields}}
   {{.Name}} {{.Type}} {{if .Tag}}{{$.Q}}{{.Tag}}{{$.Q}}{{end}}
   {{- end}}
 }
@@ -49,6 +57,52 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{.Arg.Pair}}) ({{.Ret.De
 {{if eq .Cmd ":many"}}
 {{range .Comments}}//{{.}}
 {{end -}}
+{{- if .Ret.RowStruct}}
+{{- if $.EmitMethodsWithDBArgument -}}
+func (q *Queries) {{.MethodName}}(ctx context.Context, db DBTX, {{.Arg.Pair}}) ([]{{.Ret.DefineType}}, error) {
+	rows, err := db.Query(ctx, {{.ConstantName}}, {{.Arg.Params}})
+{{- else -}}
+func (q *Queries) {{.MethodName}}(ctx context.Context, {{.Arg.Pair}}) ([]{{.Ret.DefineType}}, error) {
+	rows, err := q.db.Query(ctx, {{.ConstantName}}, {{.Arg.Params}})
+{{- end}}
+	if err != nil {
+		return nil, {{if $.WrapErrors}}fmt.Errorf("query {{.MethodName}}: %w", err){{else}}err{{end}}
+	}
+	defer rows.Close()
+	{{- if $.EmitEmptySlices}}
+	items := []{{.Ret.DefineType}}{}
+	{{else}}
+	var items []{{.Ret.DefineType}}
+	{{end}}
+	for rows.Next() {
+		var {{.Ret.Name}} {{.Ret.RowStruct.Name}}
+		if err := rows.Scan({{.Ret.RowScan}}); err != nil {
+			return nil, {{if $.WrapErrors}}fmt.Errorf("query {{.MethodName}}: %w", err){{else}}err{{end}}
+		}
+		{{$groupKey := .Ret.RowGroupKeyExpr}}
+		{{$resultKey := .Ret.ResultGroupKeyExpr}}
+		if len(items) == 0 || {{$groupKey}} != {{$resultKey}} {
+			items = append(items, {{.Ret.Struct.Name}}{
+			{{- range .Ret.Struct.Fields}}
+				{{- if or (not (hasPrefix .Type "[]")) (eq .Type "[]byte")}}
+				{{.Name}}: {{$ret.Name}}.{{.Name}},
+				{{- else}}
+				{{.Name}}: []{{trimPrefix .Type "[]"}}{ {{$ret.Name}}.{{.Name}} },
+				{{- end}}
+			{{- end}}
+			})
+		} else {
+			{{- range .Ret.EmbedManyAppends}}
+			{{.}}
+			{{- end}}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, {{if $.WrapErrors}}fmt.Errorf("query {{.MethodName}}: %w", err){{else}}err{{end}}
+	}
+	return items, nil
+}
+{{- else}}
 {{- if $.EmitMethodsWithDBArgument -}}
 func (q *Queries) {{.MethodName}}(ctx context.Context, db DBTX, {{.Arg.Pair}}) ([]{{.Ret.DefineType}}, error) {
 	rows, err := db.Query(ctx, {{.ConstantName}}, {{.Arg.Params}})
@@ -77,6 +131,7 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{.Arg.Pair}}) ([]{{.Ret.
 	}
 	return items, nil
 }
+{{- end}}
 {{end}}
 
 {{if eq .Cmd ":exec"}}

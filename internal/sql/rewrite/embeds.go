@@ -7,15 +7,19 @@ import (
 	"github.com/sqlc-dev/sqlc/internal/sql/astutils"
 )
 
-// Embed is an instance of `sqlc.embed(param)`
+// Embed is an instance of `sqlc.embed(param)` or `sqlc.embed_many(param)`
 type Embed struct {
-	Table *ast.TableName
-	param string
-	Node  *ast.ColumnRef
+	Table       *ast.TableName
+	param       string
+	Node        *ast.ColumnRef
+	IsEmbedMany bool
 }
 
 // Orig string to replace
 func (e Embed) Orig() string {
+	if e.IsEmbedMany {
+		return fmt.Sprintf("sqlc.embed_many(%s)", e.param)
+	}
 	return fmt.Sprintf("sqlc.embed(%s)", e.param)
 }
 
@@ -42,8 +46,9 @@ func Embeds(raw *ast.RawStmt) (*ast.RawStmt, EmbedSet) {
 		node := cr.Node()
 
 		switch {
-		case isEmbed(node):
+		case isEmbed(node) || isEmbedMany(node):
 			fun := node.(*ast.FuncCall)
+			embedMany := isEmbedMany(node)
 
 			if len(fun.Args.Items) == 0 {
 				return false
@@ -61,9 +66,10 @@ func Embeds(raw *ast.RawStmt) (*ast.RawStmt, EmbedSet) {
 			}
 
 			embeds = append(embeds, &Embed{
-				Table: &ast.TableName{Name: param},
-				param: param,
-				Node:  node,
+				Table:       &ast.TableName{Name: param},
+				param:       param,
+				Node:        node,
+				IsEmbedMany: embedMany,
 			})
 
 			cr.Replace(node)
@@ -86,6 +92,18 @@ func isEmbed(node ast.Node) bool {
 		return false
 	}
 
-	isValid := call.Func.Schema == "sqlc" && call.Func.Name == "embed"
-	return isValid
+	return call.Func.Schema == "sqlc" && call.Func.Name == "embed"
+}
+
+func isEmbedMany(node ast.Node) bool {
+	call, ok := node.(*ast.FuncCall)
+	if !ok {
+		return false
+	}
+
+	if call.Func == nil {
+		return false
+	}
+
+	return call.Func.Schema == "sqlc" && call.Func.Name == "embed_many"
 }
