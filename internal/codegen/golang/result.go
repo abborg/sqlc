@@ -160,6 +160,24 @@ func columnName(c *plugin.Column, pos int) string {
 	return fmt.Sprintf("column_%d", pos+1)
 }
 
+func semanticColumnName(c *plugin.Column, pos int, options *opts.Options, defaultSchema string) string {
+	if !options.EmitSemanticDuplicateColumnNames || c.Table == nil || c.IsNamedParam {
+		return columnName(c, pos)
+	}
+	colPart := columnName(c, pos)
+	tablePart := c.Table.Name
+	if c.TableAlias != "" && len(c.TableAlias) >= 2 {
+		tablePart = c.TableAlias
+	}
+	if !options.EmitExactTableNames {
+		tablePart = inflection.Singular(inflection.SingularParams{
+			Name:       tablePart,
+			Exclusions: options.InflectionExcludeTableNames,
+		})
+	}
+	return tablePart + "_" + colPart
+}
+
 func paramName(p *plugin.Parameter) string {
 	if p.Column.Name != "" {
 		return argName(p.Column.Name)
@@ -353,13 +371,21 @@ func columnsToStruct(req *plugin.GenerateRequest, options *opts.Options, name st
 	gs := Struct{
 		Name: name,
 	}
+	baseNameCount := map[string]int{}
+	for i, c := range columns {
+		if c.embed != nil {
+			continue
+		}
+		colName := columnName(c.Column, i)
+		baseNameCount[StructName(colName, options)]++
+	}
 	seen := map[string][]int{}
+	usedFieldNames := map[string]struct{}{}
 	suffixes := map[int]int{}
 	for i, c := range columns {
 		colName := columnName(c.Column, i)
 		tagName := colName
 
-		// override col/tag with expected model name
 		if c.embed != nil {
 			colName = c.embed.modelName
 			tagName = SetCaseStyle(colName, "snake")
@@ -367,19 +393,27 @@ func columnsToStruct(req *plugin.GenerateRequest, options *opts.Options, name st
 
 		fieldName := StructName(colName, options)
 		baseFieldName := fieldName
-		// Track suffixes by the ID of the column, so that columns referring to the same numbered parameter can be
-		// reused.
 		suffix := 0
 		if o, ok := suffixes[c.id]; ok && useID {
 			suffix = o
 		} else if v := len(seen[fieldName]); v > 0 && !c.IsNamedParam {
 			suffix = v + 1
 		}
+		if !c.IsNamedParam && options.EmitSemanticDuplicateColumnNames && c.Column.Table != nil && (suffix > 0 || baseNameCount[baseFieldName] > 1) {
+			semanticCol := semanticColumnName(c.Column, i, options, req.Catalog.DefaultSchema)
+			semanticFieldName := StructName(semanticCol, options)
+			if _, collision := usedFieldNames[semanticFieldName]; !collision {
+				fieldName = semanticFieldName
+				tagName = SetCaseStyle(semanticCol, "snake")
+				suffix = 0
+			}
+		}
 		suffixes[c.id] = suffix
 		if suffix > 0 {
 			tagName = fmt.Sprintf("%s_%d", tagName, suffix)
 			fieldName = fmt.Sprintf("%s_%d", fieldName, suffix)
 		}
+		usedFieldNames[fieldName] = struct{}{}
 		tags := map[string]string{}
 		if options.EmitDbTags {
 			tags["db"] = tagName

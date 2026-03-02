@@ -203,6 +203,7 @@ func pluginQueryColumn(c *compiler.Column) *plugin.Column {
 			Schema:  c.Table.Schema,
 			Name:    c.Table.Name,
 		}
+		out.TableAlias = c.TableAlias
 	}
 
 	if c.EmbedTable != nil {
