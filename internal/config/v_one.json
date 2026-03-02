@@ -110,6 +110,9 @@
                     "emit_exact_table_names": {
                         "type": "boolean"
                     },
+                    "emit_semantic_duplicate_column_names": {
+                        "type": "boolean"
+                    },
                     "emit_empty_slices": {
                         "type": "boolean"
                     },

@@ -145,6 +145,8 @@ The `gen` mapping supports the following keys:
   - If true, output a `Querier` interface in the generated package. Defaults to `false`.
 - `emit_exact_table_names`:
   - If true, struct names will mirror table names. Otherwise, sqlc attempts to singularize plural table names. Defaults to `false`.
+- `emit_semantic_duplicate_column_names`:
+  - If true, when multiple columns share the same name (e.g. from a join), struct fields use table-based names like `PostUserID` and `CommentUserID` instead of `UserID_1` and `UserID_2`. When `Table` is nil (subqueries, functions), falls back to index-based naming. Defaults to `false`.
 - `emit_empty_slices`:
   - If true, slices returned by `:many` queries will be empty instead of `nil`. Defaults to `false`.
 - `emit_exported_queries`:
@@ -428,6 +430,8 @@ Each mapping in the `packages` collection has the following keys:
   - If true, output a `Querier` interface in the generated package. Defaults to `false`.
 - `emit_exact_table_names`:
   - If true, struct names will mirror table names. Otherwise, sqlc attempts to singularize plural table names. Defaults to `false`.
+- `emit_semantic_duplicate_column_names`:
+  - If true, when multiple columns share the same name (e.g. from a join), struct fields use table-based names like `PostUserID` and `CommentUserID` instead of `UserID_1` and `UserID_2`. When `Table` is nil (subqueries, functions), falls back to index-based naming. Defaults to `false`.
 - `emit_empty_slices`:
   - If true, slices returned by `:many` queries will be empty instead of `nil`. Defaults to `false`.
 - `emit_exported_queries`:
