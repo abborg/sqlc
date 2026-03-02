@@ -153,14 +153,15 @@ func pluginQueries(r *compiler.Result) []*plugin.Query {
 			}
 		}
 		out = append(out, &plugin.Query{
-			Name:            q.Metadata.Name,
-			Cmd:             q.Metadata.Cmd,
-			Text:            q.SQL,
-			Comments:        q.Metadata.Comments,
-			Columns:         columns,
-			Params:          params,
-			Filename:        q.Metadata.Filename,
-			InsertIntoTable: iit,
+			Name:               q.Metadata.Name,
+			Cmd:                q.Metadata.Cmd,
+			Text:               q.SQL,
+			Comments:           q.Metadata.Comments,
+			Columns:            columns,
+			Params:             params,
+			Filename:           q.Metadata.Filename,
+			InsertIntoTable:    iit,
+			GroupByColumnIndex: int32(q.GroupByColumnIndex),
 		})
 	}
 	return out
@@ -216,6 +217,7 @@ func pluginQueryColumn(c *compiler.Column, excludedColumns []string) *plugin.Col
 			out.ExcludedColumns = excludedColumns
 		}
 	}
+	out.IsEmbedMany = c.IsEmbedMany
 
 	return out
 }

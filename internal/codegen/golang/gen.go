@@ -216,6 +216,7 @@ func generate(req *plugin.GenerateRequest, options *opts.Options, enums []Enum, 
 		"imports":    i.Imports,
 		"hasImports": i.HasImports,
 		"hasPrefix":  strings.HasPrefix,
+		"trimPrefix": strings.TrimPrefix,
 
 		// These methods are Go specific, they do not belong in the codegen package
 		// (as that is language independent)

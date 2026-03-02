@@ -303,7 +303,7 @@ func buildQueries(req *plugin.GenerateRequest, options *opts.Options, structs []
 					Column: p.Column,
 				})
 			}
-			s, err := columnsToStruct(req, options, gq.MethodName+"Params", cols, false)
+			s, err := columnsToStruct(req, options, gq.MethodName+"Params", cols, false, false)
 			if err != nil {
 				return nil, err
 			}
@@ -366,18 +366,46 @@ func buildQueries(req *plugin.GenerateRequest, options *opts.Options, structs []
 					})
 				}
 				var err error
-				gs, err = columnsToStruct(req, options, gq.MethodName+"Row", columns, true)
-				if err != nil {
-					return nil, err
+				hasGrouped := hasGroupedEmbeds(query)
+				if hasGrouped {
+					rowStruct, err := columnsToStruct(req, options, gq.MethodName+"Row", columns, true, false)
+					if err != nil {
+						return nil, err
+					}
+					resultStruct, err := columnsToStruct(req, options, gq.MethodName, columns, true, true)
+					if err != nil {
+						return nil, err
+					}
+					gq.Ret = QueryValue{
+						Emit:               true,
+						Name:               "i",
+						Struct:             resultStruct,
+						RowStruct:          rowStruct,
+						SQLDriver:          sqlpkg,
+						GroupByColumnIndex: int(query.GetGroupByColumnIndex()),
+					}
+				} else {
+					gs, err = columnsToStruct(req, options, gq.MethodName+"Row", columns, true, false)
+					if err != nil {
+						return nil, err
+					}
+					emit = true
+					gq.Ret = QueryValue{
+						Emit:        emit,
+						Name:        "i",
+						Struct:      gs,
+						SQLDriver:   sqlpkg,
+						EmitPointer: options.EmitResultStructPointers,
+					}
 				}
-				emit = true
-			}
-			gq.Ret = QueryValue{
-				Emit:        emit,
-				Name:        "i",
-				Struct:      gs,
-				SQLDriver:   sqlpkg,
-				EmitPointer: options.EmitResultStructPointers,
+			} else {
+				gq.Ret = QueryValue{
+					Emit:        emit,
+					Name:        "i",
+					Struct:      gs,
+					SQLDriver:   sqlpkg,
+					EmitPointer: options.EmitResultStructPointers,
+				}
 			}
 		}
 
@@ -394,6 +422,21 @@ var cmdReturnsData = map[string]struct{}{
 	metadata.CmdOne:       {},
 }
 
+func hasGroupedEmbeds(query *plugin.Query) bool {
+	if query.Cmd != metadata.CmdMany {
+		return false
+	}
+	if query.GetGroupByColumnIndex() < 0 {
+		return false
+	}
+	for _, c := range query.Columns {
+		if c.EmbedTable != nil && c.GetIsEmbedMany() {
+			return true
+		}
+	}
+	return false
+}
+
 func putOutColumns(query *plugin.Query) bool {
 	_, found := cmdReturnsData[query.Cmd]
 	return found
@@ -407,7 +450,7 @@ func putOutColumns(query *plugin.Query) bool {
 // JSON tags: count, count_2, count_2
 //
 // This is unlikely to happen, so don't fix it yet
-func columnsToStruct(req *plugin.GenerateRequest, options *opts.Options, name string, columns []goColumn, useID bool) (*Struct, error) {
+func columnsToStruct(req *plugin.GenerateRequest, options *opts.Options, name string, columns []goColumn, useID bool, embedManyAsSlice bool) (*Struct, error) {
 	gs := Struct{
 		Name: name,
 	}
@@ -471,8 +514,12 @@ func columnsToStruct(req *plugin.GenerateRequest, options *opts.Options, name st
 		if c.embed == nil {
 			f.Type = goType(req, options, c.Column)
 		} else {
-			f.Type = c.embed.modelType
-			f.EmbedFields = c.embed.fields
+			if embedManyAsSlice && c.GetIsEmbedMany() {
+				f.Type = "[]" + c.embed.modelType
+			} else {
+				f.Type = c.embed.modelType
+				f.EmbedFields = c.embed.fields
+			}
 		}
 
 		gs.Fields = append(gs.Fields, f)

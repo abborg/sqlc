@@ -363,12 +363,12 @@ func (c *Compiler) outputColumns(qc *QueryCatalog, node ast.Node) ([]*Column, er
 		case *ast.ColumnRef:
 			if hasStarRef(n) {
 
-				// add a column with a reference to an embedded table
 				if embed, ok := qc.embeds.Find(n); ok {
 					// Filter embed columns by exclude set when building the embed column
 					embedCol := &Column{
 						Name:       embed.Table.Name,
 						EmbedTable: embed.Table,
+						IsEmbedMany: embed.IsEmbedMany,
 					}
 					cols = append(cols, embedCol)
 					continue
