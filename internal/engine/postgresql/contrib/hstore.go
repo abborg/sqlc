@@ -3,8 +3,8 @@
 package contrib
 
 import (
-	"github.com/sqlc-dev/sqlc/internal/sql/ast"
-	"github.com/sqlc-dev/sqlc/internal/sql/catalog"
+	"github.com/abborg/sqlc/internal/sql/ast"
+	"github.com/abborg/sqlc/internal/sql/catalog"
 )
 
 var funcsHstore = []*catalog.Function{

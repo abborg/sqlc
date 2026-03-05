@@ -3,13 +3,13 @@ package compiler
 import (
 	"sort"
 
-	analyzer "github.com/sqlc-dev/sqlc/internal/analysis"
-	"github.com/sqlc-dev/sqlc/internal/config"
-	"github.com/sqlc-dev/sqlc/internal/source"
-	"github.com/sqlc-dev/sqlc/internal/sql/ast"
-	"github.com/sqlc-dev/sqlc/internal/sql/named"
-	"github.com/sqlc-dev/sqlc/internal/sql/rewrite"
-	"github.com/sqlc-dev/sqlc/internal/sql/validate"
+	analyzer "github.com/abborg/sqlc/internal/analysis"
+	"github.com/abborg/sqlc/internal/config"
+	"github.com/abborg/sqlc/internal/source"
+	"github.com/abborg/sqlc/internal/sql/ast"
+	"github.com/abborg/sqlc/internal/sql/named"
+	"github.com/abborg/sqlc/internal/sql/rewrite"
+	"github.com/abborg/sqlc/internal/sql/validate"
 )
 
 type analysis struct {
@@ -212,8 +212,8 @@ func (c *Compiler) _analyzeQuery(raw *ast.RawStmt, query string, failfast bool) 
 		Table:           table,
 		Columns:         cols,
 		Parameters:      params,
-		Query:          expanded,
-		Named:          namedParams,
+		Query:           expanded,
+		Named:           namedParams,
 		ExcludedColumns: excludes,
 	}, rerr
 }

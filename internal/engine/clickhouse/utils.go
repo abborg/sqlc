@@ -6,8 +6,8 @@ import (
 
 	chast "github.com/sqlc-dev/doubleclick/ast"
 
-	"github.com/sqlc-dev/sqlc/internal/debug"
-	"github.com/sqlc-dev/sqlc/internal/sql/ast"
+	"github.com/abborg/sqlc/internal/debug"
+	"github.com/abborg/sqlc/internal/sql/ast"
 )
 
 func todo(n chast.Node) *ast.TODO {

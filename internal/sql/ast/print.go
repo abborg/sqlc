@@ -3,8 +3,8 @@ package ast
 import (
 	"strings"
 
-	"github.com/sqlc-dev/sqlc/internal/debug"
-	"github.com/sqlc-dev/sqlc/internal/sql/format"
+	"github.com/abborg/sqlc/internal/debug"
+	"github.com/abborg/sqlc/internal/sql/format"
 )
 
 type nodeFormatter interface {

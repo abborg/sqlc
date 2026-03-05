@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sqlc-dev/sqlc/internal/sql/catalog"
+	"github.com/abborg/sqlc/internal/sql/catalog"
 )
 
 type colIdent struct {

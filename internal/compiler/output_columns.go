@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sqlc-dev/sqlc/internal/sql/ast"
-	"github.com/sqlc-dev/sqlc/internal/sql/astutils"
-	"github.com/sqlc-dev/sqlc/internal/sql/catalog"
-	"github.com/sqlc-dev/sqlc/internal/sql/lang"
-	"github.com/sqlc-dev/sqlc/internal/sql/sqlerr"
+	"github.com/abborg/sqlc/internal/sql/ast"
+	"github.com/abborg/sqlc/internal/sql/astutils"
+	"github.com/abborg/sqlc/internal/sql/catalog"
+	"github.com/abborg/sqlc/internal/sql/lang"
+	"github.com/abborg/sqlc/internal/sql/sqlerr"
 )
 
 // OutputColumns determines which columns a statement will output
@@ -130,10 +130,10 @@ func isExcludeAmbiguous(parsed ExcludeIdentifier, tables []*Table) error {
 
 // validateExcludeAmbiguity returns an error if any exclude matches columns
 // from more than one table.
-// - Unqualified (e.g. "user_id"): ambiguous if multiple tables have that column.
-// - Partially qualified (e.g. "posts.user_id"): ambiguous if multiple tables
-//   from different schemas match (e.g. public.posts and enterprise.posts).
-// - Fully qualified (e.g. "public.posts.user_id"): never ambiguous.
+//   - Unqualified (e.g. "user_id"): ambiguous if multiple tables have that column.
+//   - Partially qualified (e.g. "posts.user_id"): ambiguous if multiple tables
+//     from different schemas match (e.g. public.posts and enterprise.posts).
+//   - Fully qualified (e.g. "public.posts.user_id"): never ambiguous.
 func validateExcludeAmbiguity(excludes []string, tables []*Table) error {
 	for _, excl := range excludes {
 		parsed, needCheck := parseExcludeIdentifier(excl)
@@ -366,8 +366,8 @@ func (c *Compiler) outputColumns(qc *QueryCatalog, node ast.Node) ([]*Column, er
 				if embed, ok := qc.embeds.Find(n); ok {
 					// Filter embed columns by exclude set when building the embed column
 					embedCol := &Column{
-						Name:       embed.Table.Name,
-						EmbedTable: embed.Table,
+						Name:        embed.Table.Name,
+						EmbedTable:  embed.Table,
 						IsEmbedMany: embed.IsEmbedMany,
 					}
 					cols = append(cols, embedCol)

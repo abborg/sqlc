@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/sqlc-dev/sqlc/internal/sql/ast"
-	"github.com/sqlc-dev/sqlc/internal/sql/sqlerr"
+	"github.com/abborg/sqlc/internal/sql/ast"
+	"github.com/abborg/sqlc/internal/sql/sqlerr"
 )
 
 func TestParseExcludeIdentifier(t *testing.T) {

@@ -11,15 +11,15 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	core "github.com/sqlc-dev/sqlc/internal/analysis"
-	"github.com/sqlc-dev/sqlc/internal/config"
-	"github.com/sqlc-dev/sqlc/internal/dbmanager"
-	"github.com/sqlc-dev/sqlc/internal/opts"
-	"github.com/sqlc-dev/sqlc/internal/shfmt"
-	"github.com/sqlc-dev/sqlc/internal/sql/ast"
-	"github.com/sqlc-dev/sqlc/internal/sql/catalog"
-	"github.com/sqlc-dev/sqlc/internal/sql/named"
-	"github.com/sqlc-dev/sqlc/internal/sql/sqlerr"
+	core "github.com/abborg/sqlc/internal/analysis"
+	"github.com/abborg/sqlc/internal/config"
+	"github.com/abborg/sqlc/internal/dbmanager"
+	"github.com/abborg/sqlc/internal/opts"
+	"github.com/abborg/sqlc/internal/shfmt"
+	"github.com/abborg/sqlc/internal/sql/ast"
+	"github.com/abborg/sqlc/internal/sql/catalog"
+	"github.com/abborg/sqlc/internal/sql/named"
+	"github.com/abborg/sqlc/internal/sql/sqlerr"
 )
 
 type Analyzer struct {

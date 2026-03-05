@@ -4,17 +4,17 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sqlc-dev/sqlc/internal/analyzer"
-	"github.com/sqlc-dev/sqlc/internal/config"
-	"github.com/sqlc-dev/sqlc/internal/dbmanager"
-	"github.com/sqlc-dev/sqlc/internal/engine/dolphin"
-	"github.com/sqlc-dev/sqlc/internal/engine/postgresql"
-	pganalyze "github.com/sqlc-dev/sqlc/internal/engine/postgresql/analyzer"
-	"github.com/sqlc-dev/sqlc/internal/engine/sqlite"
-	sqliteanalyze "github.com/sqlc-dev/sqlc/internal/engine/sqlite/analyzer"
-	"github.com/sqlc-dev/sqlc/internal/opts"
-	"github.com/sqlc-dev/sqlc/internal/sql/catalog"
-	"github.com/sqlc-dev/sqlc/internal/x/expander"
+	"github.com/abborg/sqlc/internal/analyzer"
+	"github.com/abborg/sqlc/internal/config"
+	"github.com/abborg/sqlc/internal/dbmanager"
+	"github.com/abborg/sqlc/internal/engine/dolphin"
+	"github.com/abborg/sqlc/internal/engine/postgresql"
+	pganalyze "github.com/abborg/sqlc/internal/engine/postgresql/analyzer"
+	"github.com/abborg/sqlc/internal/engine/sqlite"
+	sqliteanalyze "github.com/abborg/sqlc/internal/engine/sqlite/analyzer"
+	"github.com/abborg/sqlc/internal/opts"
+	"github.com/abborg/sqlc/internal/sql/catalog"
+	"github.com/abborg/sqlc/internal/x/expander"
 )
 
 type Compiler struct {

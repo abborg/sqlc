@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/sqlc-dev/sqlc/internal/sql/format"
+import "github.com/abborg/sqlc/internal/sql/format"
 
 type InferClause struct {
 	IndexElems  *List

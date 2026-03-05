@@ -3,7 +3,7 @@ package ast
 import (
 	"strconv"
 
-	"github.com/sqlc-dev/sqlc/internal/sql/format"
+	"github.com/abborg/sqlc/internal/sql/format"
 )
 
 type Integer struct {
